@@ -6,25 +6,23 @@ import (
 	"github.com/cmkqwerty/blocker/proto"
 	"google.golang.org/grpc"
 	"log"
+	"time"
 )
 
 func main() {
 	makeNode("localhost:3000", []string{})
+	time.Sleep(time.Second)
 	makeNode("localhost:3001", []string{"localhost:3000"})
-
+	time.Sleep(4 * time.Second)
+	makeNode("localhost:3002", []string{"localhost:3001"})
 	select {}
 }
 
 func makeNode(listenAddr string, bootstrapNodes []string) *node.Node {
 	n := node.NewNode()
 	go func() {
-		log.Fatal(n.Start(listenAddr))
+		log.Fatal(n.Start(listenAddr, bootstrapNodes))
 	}()
-	if len(bootstrapNodes) > 0 {
-		if err := n.BootstrapNetwork(bootstrapNodes); err != nil {
-			log.Fatal(err)
-		}
-	}
 
 	return n
 }
