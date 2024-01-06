@@ -8,10 +8,10 @@ import (
 )
 
 func SignTransaction(pk *crypto.PrivateKey, tx *proto.Transaction) *crypto.Signature {
-	return pk.Sign(HashTransactions(tx))
+	return pk.Sign(HashTransaction(tx))
 }
 
-func HashTransactions(tx *proto.Transaction) []byte {
+func HashTransaction(tx *proto.Transaction) []byte {
 	b, err := pb.Marshal(tx)
 	if err != nil {
 		panic(err)
@@ -23,6 +23,10 @@ func HashTransactions(tx *proto.Transaction) []byte {
 
 func VerifyTransaction(tx *proto.Transaction) bool {
 	for _, input := range tx.Inputs {
+		if len(input.Signature) == 0 {
+			panic("transaction with no signature")
+		}
+
 		var (
 			signature = crypto.SignatureFromBytes(input.Signature)
 			publicKey = crypto.PublicKeyFromBytes(input.PublicKey)
@@ -30,7 +34,7 @@ func VerifyTransaction(tx *proto.Transaction) bool {
 
 		// TODO: make sure dont run into problems after verify
 		input.Signature = nil
-		if !signature.Verify(publicKey, HashTransactions(tx)) {
+		if !signature.Verify(publicKey, HashTransaction(tx)) {
 			return false
 		}
 	}
