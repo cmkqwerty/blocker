@@ -9,7 +9,7 @@ import (
 )
 
 type UTXOStorer interface {
-	Put(string, *UTXO) error
+	Put(*UTXO) error
 	Get(string) (*UTXO, error)
 }
 
@@ -24,10 +24,11 @@ func NewMemoryUTXOStore() *MemoryUTXOStore {
 	}
 }
 
-func (m *MemoryUTXOStore) Put(key string, utxo *UTXO) error {
+func (m *MemoryUTXOStore) Put(utxo *UTXO) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
+	key := fmt.Sprintf("%s_%d", utxo.Hash, utxo.OutIndex)
 	m.data[key] = utxo
 
 	return nil
