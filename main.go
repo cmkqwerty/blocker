@@ -19,7 +19,7 @@ func main() {
 	makeNode("localhost:3002", []string{"localhost:3001"}, false)
 
 	for {
-		time.Sleep(2 * time.Second)
+		time.Sleep(200 * time.Millisecond)
 		makeTransaction()
 	}
 }

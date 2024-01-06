@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestSignBlock(t *testing.T) {
+func TestVerifyBlock(t *testing.T) {
 	var (
 		block      = util.RandomBlock()
 		privateKey = crypto.GeneratePrivateKey()
@@ -18,6 +18,16 @@ func TestSignBlock(t *testing.T) {
 
 	assert.Equal(t, 64, len(signature.Bytes()))
 	assert.True(t, signature.Verify(publicKey, HashBlock(block)))
+
+	assert.Equal(t, block.PublicKey, publicKey.Bytes())
+	assert.Equal(t, block.Signature, signature.Bytes())
+
+	assert.True(t, VerifyBlock(block))
+
+	invalidPrivKey := crypto.GeneratePrivateKey()
+	block.PublicKey = invalidPrivKey.Public().Bytes()
+
+	assert.False(t, VerifyBlock(block))
 }
 
 func TestHashBlock(t *testing.T) {
