@@ -2,24 +2,39 @@ package main
 
 import (
 	"context"
+	"github.com/cmkqwerty/blocker/crypto"
 	"github.com/cmkqwerty/blocker/node"
 	"github.com/cmkqwerty/blocker/proto"
+	"github.com/cmkqwerty/blocker/util"
 	"google.golang.org/grpc"
 	"log"
 	"time"
 )
 
 func main() {
-	makeNode("localhost:3000", []string{})
+	makeNode("localhost:3000", []string{}, true)
 	time.Sleep(time.Second)
-	makeNode("localhost:3001", []string{"localhost:3000"})
-	time.Sleep(4 * time.Second)
-	makeNode("localhost:3002", []string{"localhost:3001"})
-	select {}
+	makeNode("localhost:3001", []string{"localhost:3000"}, false)
+	time.Sleep(time.Second)
+	makeNode("localhost:3002", []string{"localhost:3001"}, false)
+
+	for {
+		time.Sleep(2 * time.Second)
+		makeTransaction()
+	}
 }
 
-func makeNode(listenAddr string, bootstrapNodes []string) *node.Node {
-	n := node.NewNode()
+func makeNode(listenAddr string, bootstrapNodes []string, isValidator bool) *node.Node {
+	cfg := node.ServerConfig{
+		Version:    "0.0.1",
+		ListenAddr: listenAddr,
+	}
+	if isValidator {
+		privKey := crypto.GeneratePrivateKey()
+		cfg.PrivateKey = privKey
+	}
+
+	n := node.NewNode(cfg)
 	go func() {
 		log.Fatal(n.Start(listenAddr, bootstrapNodes))
 	}()
@@ -34,14 +49,26 @@ func makeTransaction() {
 	}
 
 	c := proto.NewNodeClient(client)
+	privKey := crypto.GeneratePrivateKey()
 
-	version := &proto.Version{
-		Version:    "0.0.1",
-		Height:     1,
-		ListenAddr: "localhost:3001",
+	tx := &proto.Transaction{
+		Version: 1,
+		Inputs: []*proto.TxInput{
+			{
+				PrevTxHash:   util.RandomHash(),
+				PrevOutIndex: 0,
+				PublicKey:    privKey.Public().Bytes(),
+			},
+		},
+		Outputs: []*proto.TxOutput{
+			{
+				Amount:  99,
+				Address: privKey.Public().Address().Bytes(),
+			},
+		},
 	}
 
-	_, err = c.Handshake(context.TODO(), version)
+	_, err = c.HandleTransaction(context.TODO(), tx)
 	if err != nil {
 		log.Fatal(err)
 	}
