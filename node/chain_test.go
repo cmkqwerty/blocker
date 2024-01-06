@@ -72,7 +72,6 @@ func TestAddBlockWithTX(t *testing.T) {
 
 	ftx, err := chain.txStore.Get("737cb341c1dd4a34f78faeb9ae8ffc07b5e9cf987a1ef0bfb65d98542f48aacb")
 	assert.Nil(t, err)
-	fmt.Println(ftx)
 
 	inputs := []*proto.TxInput{
 		{
@@ -96,6 +95,10 @@ func TestAddBlockWithTX(t *testing.T) {
 		Inputs:  inputs,
 		Outputs: outputs,
 	}
+
+	signature := types.SignTransaction(privateKey, tx)
+	tx.Inputs[0].Signature = signature.Bytes()
+
 	block.Transactions = append(block.Transactions, tx)
 	require.Nil(t, chain.AddBlock(block))
 
@@ -103,4 +106,11 @@ func TestAddBlockWithTX(t *testing.T) {
 	fetchedTx, err := chain.txStore.Get(txHash)
 	require.Nil(t, err)
 	require.Equal(t, tx, fetchedTx)
+
+	// check utxo for unspent
+	address := crypto.AddressFromBytes(tx.Outputs[0].Address)
+	key := fmt.Sprintf("%s_%s", address, txHash)
+
+	_, err = chain.utxoStore.Get(key)
+	require.Nil(t, err)
 }

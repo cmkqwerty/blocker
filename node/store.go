@@ -8,6 +8,43 @@ import (
 	"sync"
 )
 
+type UTXOStorer interface {
+	Put(string, *UTXO) error
+	Get(string) (*UTXO, error)
+}
+
+type MemoryUTXOStore struct {
+	lock sync.RWMutex
+	data map[string]*UTXO
+}
+
+func NewMemoryUTXOStore() *MemoryUTXOStore {
+	return &MemoryUTXOStore{
+		data: make(map[string]*UTXO),
+	}
+}
+
+func (m *MemoryUTXOStore) Put(key string, utxo *UTXO) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.data[key] = utxo
+
+	return nil
+}
+
+func (m *MemoryUTXOStore) Get(hash string) (*UTXO, error) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	utxo, ok := m.data[hash]
+	if !ok {
+		return nil, fmt.Errorf("utxo with hash [%s] does not exist", hash)
+	}
+
+	return utxo, nil
+}
+
 type TXStorer interface {
 	Put(*proto.Transaction) error
 	Get(string) (*proto.Transaction, error)

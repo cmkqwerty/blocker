@@ -39,9 +39,17 @@ func (h *HeaderList) Len() int {
 	return len(h.headers)
 }
 
+type UTXO struct {
+	Hash     string
+	OutIndex int
+	Amount   int64
+	Spent    bool
+}
+
 type Chain struct {
 	txStore    TXStorer
 	blockStore BlockStorer
+	utxoStore  UTXOStorer
 	headers    *HeaderList
 }
 
@@ -49,6 +57,7 @@ func NewChain(blockStore BlockStorer, txStore TXStorer) *Chain {
 	chain := &Chain{
 		blockStore: blockStore,
 		txStore:    txStore,
+		utxoStore:  NewMemoryUTXOStore(),
 		headers:    NewHeaderList(),
 	}
 
@@ -76,9 +85,24 @@ func (c *Chain) addBlock(block *proto.Block) error {
 	c.headers.Add(block.Header)
 
 	for _, tx := range block.Transactions {
-		fmt.Println("new tx: ", hex.EncodeToString(types.HashTransaction(tx)))
 		if err := c.txStore.Put(tx); err != nil {
 			return err
+		}
+		hash := hex.EncodeToString(types.HashTransaction(tx))
+
+		for it, output := range tx.Outputs {
+			utxo := &UTXO{
+				Hash:     hash,
+				Amount:   output.Amount,
+				OutIndex: it,
+				Spent:    false,
+			}
+			address := crypto.AddressFromBytes(output.Address)
+			key := fmt.Sprintf("%s_%s", address, hash)
+
+			if err := c.utxoStore.Put(key, utxo); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -117,6 +141,12 @@ func (c *Chain) ValidateBlock(block *proto.Block) error {
 	hash := types.HashBlock(currentBlock)
 	if !bytes.Equal(hash, block.Header.PrevHash) {
 		return fmt.Errorf("prev block hash mismatch")
+	}
+
+	for _, tx := range block.Transactions {
+		if !types.VerifyTransaction(tx) {
+			return fmt.Errorf("invalid transaction signature")
+		}
 	}
 
 	return nil
