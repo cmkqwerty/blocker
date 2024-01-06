@@ -9,6 +9,8 @@ import (
 	"github.com/cmkqwerty/blocker/types"
 )
 
+const godSeed = "d12cda4733e2e24377cc161b55bf447a13a615d48838b33ab7634b77531734dc"
+
 type HeaderList struct {
 	headers []*proto.Header
 }
@@ -38,13 +40,15 @@ func (h *HeaderList) Len() int {
 }
 
 type Chain struct {
+	txStore    TXStorer
 	blockStore BlockStorer
 	headers    *HeaderList
 }
 
-func NewChain(blockStore BlockStorer) *Chain {
+func NewChain(blockStore BlockStorer, txStore TXStorer) *Chain {
 	chain := &Chain{
 		blockStore: blockStore,
+		txStore:    txStore,
 		headers:    NewHeaderList(),
 	}
 
@@ -70,6 +74,14 @@ func (c *Chain) AddBlock(block *proto.Block) error {
 
 func (c *Chain) addBlock(block *proto.Block) error {
 	c.headers.Add(block.Header)
+
+	for _, tx := range block.Transactions {
+		fmt.Println("new tx: ", hex.EncodeToString(types.HashTransaction(tx)))
+		if err := c.txStore.Put(tx); err != nil {
+			return err
+		}
+	}
+
 	return c.blockStore.Put(block)
 }
 
@@ -111,7 +123,8 @@ func (c *Chain) ValidateBlock(block *proto.Block) error {
 }
 
 func createGenesisBlock() *proto.Block {
-	privKey := crypto.GeneratePrivateKey()
+	privateKey := crypto.NewPrivateKeyFromSeedString(godSeed)
+
 	block := &proto.Block{
 		Header: &proto.Header{
 			Version: 1,
@@ -119,6 +132,19 @@ func createGenesisBlock() *proto.Block {
 		Transactions: []*proto.Transaction{},
 	}
 
-	types.SignBlock(privKey, block)
+	tx := &proto.Transaction{
+		Version: 1,
+		Inputs:  []*proto.TxInput{},
+		Outputs: []*proto.TxOutput{
+			{
+				Amount:  1000,
+				Address: privateKey.Public().Address().Bytes(),
+			},
+		},
+	}
+
+	block.Transactions = append(block.Transactions, tx)
+	types.SignBlock(privateKey, block)
+
 	return block
 }

@@ -8,6 +8,44 @@ import (
 	"sync"
 )
 
+type TXStorer interface {
+	Put(*proto.Transaction) error
+	Get(string) (*proto.Transaction, error)
+}
+
+type MemoryTXStore struct {
+	lock sync.RWMutex
+	txx  map[string]*proto.Transaction
+}
+
+func NewMemoryTXStore() *MemoryTXStore {
+	return &MemoryTXStore{
+		txx: make(map[string]*proto.Transaction),
+	}
+}
+
+func (m *MemoryTXStore) Put(tx *proto.Transaction) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	hash := hex.EncodeToString(types.HashTransaction(tx))
+	m.txx[hash] = tx
+
+	return nil
+}
+
+func (m *MemoryTXStore) Get(hash string) (*proto.Transaction, error) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	tx, ok := m.txx[hash]
+	if !ok {
+		return nil, fmt.Errorf("transaction with hash [%s] does not exist", hash)
+	}
+
+	return tx, nil
+}
+
 type BlockStorer interface {
 	Put(*proto.Block) error
 	Get(string) (*proto.Block, error)
