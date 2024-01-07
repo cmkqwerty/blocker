@@ -27,11 +27,6 @@ func (t TxHash) Equals(other merkletree.Content) (bool, error) {
 }
 
 func SignBlock(pk *crypto.PrivateKey, block *proto.Block) *crypto.Signature {
-	hash := HashBlock(block)
-	signature := pk.Sign(hash)
-	block.PublicKey = pk.Public().Bytes()
-	block.Signature = signature.Bytes()
-
 	if len(block.Transactions) > 0 {
 		tree, err := GetMerkleTree(block)
 		if err != nil {
@@ -40,6 +35,11 @@ func SignBlock(pk *crypto.PrivateKey, block *proto.Block) *crypto.Signature {
 
 		block.Header.RootHash = tree.MerkleRoot()
 	}
+
+	hash := HashBlock(block)
+	signature := pk.Sign(hash)
+	block.PublicKey = pk.Public().Bytes()
+	block.Signature = signature.Bytes()
 
 	return signature
 }
@@ -74,9 +74,11 @@ func VerifyBlock(block *proto.Block) bool {
 		return false
 	}
 
-	signature := crypto.SignatureFromBytes(block.Signature)
-	publicKey := crypto.PublicKeyFromBytes(block.PublicKey)
-	hash := HashBlock(block)
+	var (
+		signature = crypto.SignatureFromBytes(block.Signature)
+		publicKey = crypto.PublicKeyFromBytes(block.PublicKey)
+		hash      = HashBlock(block)
+	)
 
 	return signature.Verify(publicKey, hash)
 }
