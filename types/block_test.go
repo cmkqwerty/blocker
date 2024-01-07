@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/cmkqwerty/blocker/crypto"
+	"github.com/cmkqwerty/blocker/proto"
 	"github.com/cmkqwerty/blocker/util"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -35,4 +36,17 @@ func TestHashBlock(t *testing.T) {
 	hash := HashBlock(block)
 
 	assert.Equal(t, 32, len(hash))
+}
+
+func TestCalculateRootHash(t *testing.T) {
+	privateKey := crypto.GeneratePrivateKey()
+	block := util.RandomBlock()
+	tx := &proto.Transaction{
+		Version: 1,
+	}
+	block.Transactions = append(block.Transactions, tx)
+	SignBlock(privateKey, block)
+
+	assert.True(t, VerifyRootHash(block))
+	assert.Equal(t, 32, len(block.Header.RootHash))
 }

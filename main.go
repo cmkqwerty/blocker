@@ -8,18 +8,22 @@ import (
 	"github.com/cmkqwerty/blocker/util"
 	"google.golang.org/grpc"
 	"log"
+	"math/rand"
 	"time"
 )
 
 func main() {
-	makeNode("localhost:3000", []string{}, true)
+	rand.Seed(time.Now().UnixNano())
+	validatorIndex := rand.Intn(3)
+
+	makeNode("localhost:3000", []string{}, validatorIndex == 0)
 	time.Sleep(time.Second)
-	makeNode("localhost:3001", []string{"localhost:3000"}, false)
+	makeNode("localhost:3001", []string{"localhost:3000"}, validatorIndex == 1)
 	time.Sleep(time.Second)
-	makeNode("localhost:3002", []string{"localhost:3001"}, false)
+	makeNode("localhost:3002", []string{"localhost:3001"}, validatorIndex == 2)
 
 	for {
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(time.Second)
 		makeTransaction()
 	}
 }
